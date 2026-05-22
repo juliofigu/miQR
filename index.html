@@ -69,9 +69,11 @@
     
     window.cedulaValida = (cedula) => /^[0-9]{6,8}$/.test(cedula);
     
-    // ===== GENERAR HASH SEGURO =====
+    // ===== GENERAR HASH SEGURO (DETERMINISTA) =====
     async function generateSecureHash(cedula, timestamp) {
-      const data = `${cedula}|${timestamp}|${CONFIG.hashSalt}${Math.random().toString(36).slice(2)}`;
+      // Usar timestamp del registro si existe, sino usar cédula como seed
+      const seed = timestamp || cedula;
+      const data = `${cedula}|${seed}|${CONFIG.hashSalt}`;
       const encoder = new TextEncoder();
       const dataBuffer = encoder.encode(data);
       const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
@@ -80,15 +82,15 @@
         .join('');
     }
     
-    // ===== GENERAR CONTENIDO QR =====
-    // ✅ CORREGIDO: Usa hash almacenado o fallback a formato antiguo
-    function generateQRContent(person, cedula) {
-      // Priorizar hash almacenado en Firebase
+    // ===== GENERAR CONTENIDO QR (CORREGIDO) =====
+    async function generateQRContent(person, cedula) {
+      // ✅ Priorizar hash almacenado en Firebase (64 caracteres hex)
       if (person.qrHash && /^[a-f0-9]{64}$/.test(person.qrHash)) {
         return person.qrHash;
       }
-      // Fallback para registros antiguos sin hash
-      return `${cedula}|${person.nombre}|${person.parroquia}|${person.telefono}`;
+      // ✅ Generar hash determinista si no existe (fallback seguro)
+      const hash = await generateSecureHash(cedula, person.timestamp);
+      return hash;
     }
     
     // ===== BUSCAR Y MOSTRAR QR =====
@@ -116,7 +118,7 @@
         }
         
         const data = snap.data();
-        mostrarQR(data, cedula);
+        await mostrarQR(data, cedula);
         
       } catch (err) {
         console.error('Error:', err);
@@ -128,15 +130,15 @@
     };
     
     // ===== MOSTRAR QR EN PANTALLA =====
-    function mostrarQR(persona, cedula) {
+    async function mostrarQR(persona, cedula) {
       document.getElementById('paso1').style.display = 'none';
       document.getElementById('paso2').style.display = 'block';
       
       document.getElementById('qr-nombre').textContent = persona.nombre;
       document.getElementById('qr-parroquia').textContent = `📍 ${persona.parroquia}`;
       
-      // ✅ QR con hash seguro (sin datos sensibles) - CORREGIDO
-      const qrContent = generateQRContent(persona, cedula);
+      // ✅ QR con hash seguro (sin datos sensibles)
+      const qrContent = await generateQRContent(persona, cedula);
       
       setTimeout(() => {
         document.getElementById('qr-container').innerHTML = '';
