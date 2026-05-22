@@ -8,168 +8,171 @@
   
   <!-- Firebase SDK -->
   <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  
-  const firebaseConfig = {
-    apiKey: "AIzaSyCnM2jqvY3oxdrS5Js-HghWjk7Sjan7qUc",
-    authDomain: "evento-04jun.firebaseapp.com",
-    projectId: "evento-04jun",
-    storageBucket: "evento-04jun.firebasestorage.app",
-    messagingSenderId: "638789735095",
-    appId: "1:638789735095:web:6337210d4816af49e9f332"
-  };
-  
-  const app = initializeApp(firebaseConfig);
-  const firestore = getFirestore(app);
-  
-  // ===== CONFIGURACIÓN =====
-  const CONFIG = {
-    qrFormat: '{hash}',
-    hashSalt: 'VENTE_CABIMAS_2024_SECURE_SALT_'
-  };
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyCnM2jqvY3oxdrS5Js-HghWjk7Sjan7qUc",
+      authDomain: "evento-04jun.firebaseapp.com",
+      projectId: "evento-04jun",
+      storageBucket: "evento-04jun.firebasestorage.app",
+      messagingSenderId: "638789735095",
+      appId: "1:638789735095:web:6337210d4816af49e9f332"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const firestore = getFirestore(app);
+    
+    // ===== CONFIGURACIÓN =====
+    const CONFIG = {
+      qrFormat: '{hash}',
+      hashSalt: 'VENTE_CABIMAS_2024_SECURE_SALT_'
+    };
 
-  // ===== VALIDACIÓN DE CÉDULA =====
-  window.permitirSoloNumeros = (event) => {
-    const key = event.key;
-    if (!/[0-9]/.test(key) && 
-        !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(key)) {
-      event.preventDefault();
-    }
-  };
-  
-  window.validarCedula = (input) => {
-    const val = input.value.replace(/\D/g, '');
-    input.value = val;
+    // ===== VALIDACIÓN DE CÉDULA =====
+    window.permitirSoloNumeros = (event) => {
+      const key = event.key;
+      if (!/[0-9]/.test(key) && 
+          !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(key)) {
+        event.preventDefault();
+      }
+    };
     
-    const btn = document.getElementById('btn-buscar');
-    const help = document.getElementById('help-msg');
-    const error = document.getElementById('error-msg');
-    
-    help.style.display = 'block';
-    error.style.display = 'none';
-    input.style.borderColor = '#e2e8f0';
-    
-    if (val.length === 0) {
-      help.textContent = 'Ingresa tu cédula (6, 7 u 8 dígitos)';
-      help.style.color = '#64748b';
-      btn.disabled = true;
-    } else if (val.length < 6) {
-      help.textContent = `Faltan ${6 - val.length} dígito(s)...`;
-      help.style.color = '#f59e0b';
-      btn.disabled = true;
-    } else if (val.length >= 6 && val.length <= 8) {
-      help.style.display = 'none';
-      input.style.borderColor = '#22c55e';
-      btn.disabled = false;
-    } else {
-      input.value = val.slice(0, 8);
-    }
-  };
-  
-  window.cedulaValida = (cedula) => /^[0-9]{6,8}$/.test(cedula);
-  
-  // ===== GENERAR HASH SEGURO =====
-  async function generateSecureHash(cedula, timestamp) {
-    const data = `${cedula}|${timestamp}|${CONFIG.hashSalt}${Math.random().toString(36).slice(2)}`;
-    const encoder = new TextEncoder();
-    const dataBuffer = encoder.encode(data);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-    return Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
-  
-  // ===== GENERAR CONTENIDO QR =====
-  function generateQRContent(person) {
-    if (person.qrHash) {
-      return person.qrHash;
-    }
-    return generateSecureHash(person.cedula, person.timestamp || Date.now());
-  }
-  
-  // ===== BUSCAR Y MOSTRAR QR =====
-  window.buscarMiQR = async () => {
-    const input = document.getElementById('cedula-input');
-    const cedula = input.value.trim();
-    
-    if (!cedulaValida(cedula)) {
-      mostrarError('⚠️ Cédula inválida. Usa 6, 7 u 8 dígitos.');
-      return;
-    }
-
-    const btn = document.getElementById('btn-buscar');
-    const original = btn.innerHTML;
-    btn.innerHTML = '🔍 Buscando...';
-    btn.disabled = true;
-    
-    try {
-      const docRef = doc(firestore, 'asistentes', cedula);
-      const snap = await getDoc(docRef);
+    window.validarCedula = (input) => {
+      const val = input.value.replace(/\D/g, '');
+      input.value = val;
       
-      if (!snap.exists()) {
-        mostrarError('❌ Cédula no registrada en el evento.');
+      const btn = document.getElementById('btn-buscar');
+      const help = document.getElementById('help-msg');
+      const error = document.getElementById('error-msg');
+      
+      help.style.display = 'block';
+      error.style.display = 'none';
+      input.style.borderColor = '#e2e8f0';
+      
+      if (val.length === 0) {
+        help.textContent = 'Ingresa tu cédula (6, 7 u 8 dígitos)';
+        help.style.color = '#64748b';
+        btn.disabled = true;
+      } else if (val.length < 6) {
+        help.textContent = `Faltan ${6 - val.length} dígito(s)...`;
+        help.style.color = '#f59e0b';
+        btn.disabled = true;
+      } else if (val.length >= 6 && val.length <= 8) {
+        help.style.display = 'none';
+        input.style.borderColor = '#22c55e';
+        btn.disabled = false;
+      } else {
+        input.value = val.slice(0, 8);
+      }
+    };
+    
+    window.cedulaValida = (cedula) => /^[0-9]{6,8}$/.test(cedula);
+    
+    // ===== GENERAR HASH SEGURO =====
+    async function generateSecureHash(cedula, timestamp) {
+      const data = `${cedula}|${timestamp}|${CONFIG.hashSalt}${Math.random().toString(36).slice(2)}`;
+      const encoder = new TextEncoder();
+      const dataBuffer = encoder.encode(data);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+      return Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+    
+    // ===== GENERAR CONTENIDO QR =====
+    // ✅ CORREGIDO: Usa hash almacenado o fallback a formato antiguo
+    function generateQRContent(person, cedula) {
+      // Priorizar hash almacenado en Firebase
+      if (person.qrHash && /^[a-f0-9]{64}$/.test(person.qrHash)) {
+        return person.qrHash;
+      }
+      // Fallback para registros antiguos sin hash
+      return `${cedula}|${person.nombre}|${person.parroquia}|${person.telefono}`;
+    }
+    
+    // ===== BUSCAR Y MOSTRAR QR =====
+    window.buscarMiQR = async () => {
+      const input = document.getElementById('cedula-input');
+      const cedula = input.value.trim();
+      
+      if (!cedulaValida(cedula)) {
+        mostrarError('⚠️ Cédula inválida. Usa 6, 7 u 8 dígitos.');
         return;
       }
+
+      const btn = document.getElementById('btn-buscar');
+      const original = btn.innerHTML;
+      btn.innerHTML = '🔍 Buscando...';
+      btn.disabled = true;
       
-      const data = snap.data();
-      mostrarQR(data, cedula);
+      try {
+        const docRef = doc(firestore, 'asistentes', cedula);
+        const snap = await getDoc(docRef);
+        
+        if (!snap.exists()) {
+          mostrarError('❌ Cédula no registrada en el evento.');
+          return;
+        }
+        
+        const data = snap.data();
+        mostrarQR(data, cedula);
+        
+      } catch (err) {
+        console.error('Error:', err);
+        mostrarError('❌ Error de conexión. Intenta nuevamente.');
+      } finally {
+        btn.innerHTML = original;
+        btn.disabled = false;
+      }
+    };
+    
+    // ===== MOSTRAR QR EN PANTALLA =====
+    function mostrarQR(persona, cedula) {
+      document.getElementById('paso1').style.display = 'none';
+      document.getElementById('paso2').style.display = 'block';
       
-    } catch (err) {
-      console.error('Error:', err);
-      mostrarError('❌ Error de conexión. Intenta nuevamente.');
-    } finally {
-      btn.innerHTML = original;
-      btn.disabled = false;
+      document.getElementById('qr-nombre').textContent = persona.nombre;
+      document.getElementById('qr-parroquia').textContent = `📍 ${persona.parroquia}`;
+      
+      // ✅ QR con hash seguro (sin datos sensibles) - CORREGIDO
+      const qrContent = generateQRContent(persona, cedula);
+      
+      setTimeout(() => {
+        document.getElementById('qr-container').innerHTML = '';
+        new QRCode(document.getElementById('qr-container'), {
+          text: qrContent,
+          width: 240,
+          height: 240,
+          colorDark: '#0f172a',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      }, 100);
     }
-  };
-  
-  // ===== MOSTRAR QR EN PANTALLA =====
-  function mostrarQR(persona, cedula) {
-    document.getElementById('paso1').style.display = 'none';
-    document.getElementById('paso2').style.display = 'block';
     
-    document.getElementById('qr-nombre').textContent = persona.nombre;
-    document.getElementById('qr-parroquia').textContent = `📍 ${persona.parroquia}`;
+    // ===== MOSTRAR ERROR =====
+    function mostrarError(msg) {
+      const error = document.getElementById('error-msg');
+      error.textContent = msg;
+      error.style.display = 'block';
+      document.getElementById('cedula-input').style.borderColor = '#ef4444';
+    }
     
-    // ✅ QR con hash seguro (sin datos sensibles)
-    const qrContent = generateQRContent(persona);
-    
-    setTimeout(() => {
-      document.getElementById('qr-container').innerHTML = '';
-      new QRCode(document.getElementById('qr-container'), {
-        text: qrContent,
-        width: 240,
-        height: 240,
-        colorDark: '#0f172a',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.H
-      });
-    }, 100);
-  }
-  
-  // ===== MOSTRAR ERROR =====
-  function mostrarError(msg) {
-    const error = document.getElementById('error-msg');
-    error.textContent = msg;
-    error.style.display = 'block';
-    document.getElementById('cedula-input').style.borderColor = '#ef4444';
-  }
-  
-  // ===== RESETEAR FORMULARIO =====
-  window.resetear = () => {
-    document.getElementById('paso1').style.display = 'block';
-    document.getElementById('paso2').style.display = 'none';
-    document.getElementById('error-msg').style.display = 'none';
-    const input = document.getElementById('cedula-input');
-    input.value = '';
-    input.style.borderColor = '#e2e8f0';
-    document.getElementById('help-msg').style.display = 'block';
-    document.getElementById('help-msg').textContent = 'Ingresa tu cédula (6, 7 u 8 dígitos)';
-    document.getElementById('help-msg').style.color = '#64748b';
-    document.getElementById('btn-buscar').disabled = true;
-  };
-</script>
+    // ===== RESETEAR FORMULARIO =====
+    window.resetear = () => {
+      document.getElementById('paso1').style.display = 'block';
+      document.getElementById('paso2').style.display = 'none';
+      document.getElementById('error-msg').style.display = 'none';
+      const input = document.getElementById('cedula-input');
+      input.value = '';
+      input.style.borderColor = '#e2e8f0';
+      document.getElementById('help-msg').style.display = 'block';
+      document.getElementById('help-msg').textContent = 'Ingresa tu cédula (6, 7 u 8 dígitos)';
+      document.getElementById('help-msg').style.color = '#64748b';
+      document.getElementById('btn-buscar').disabled = true;
+    };
+  </script>
   
   <!-- Librería QR -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -310,8 +313,8 @@
     </div>
     
     <div class="footer">
-      <p>📱 Owner:. <strong>Lcdo. Julio Figueroa</strong></p>
-      <strong>VENTE CABIMAS</strong> • 14 Años por la Libertad 🇻
+      <p>📱 Owner: <strong>Lcdo. Julio Figueroa</strong></p>
+      <strong>VENTE CABIMAS</strong> • 14 Años por la Libertad 🇻🇪
     </div>
   </div>
 </body>
