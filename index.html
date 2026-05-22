@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e40af">
+  <title>🎟️ Mi QR - Evento 04-Jun</title>
+  
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyCnM2jqvY3oxdrS5Js-HghWjk7Sjan7qUc",
+      authDomain: "evento-04jun.firebaseapp.com",
+      projectId: "evento-04jun",
+      storageBucket: "evento-04jun.firebasestorage.app",
+      messagingSenderId: "638789735095",
+      appId: "1:638789735095:web:6337210d4816af49e9f332"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const firestore = getFirestore(app);
+    
+    // ===== VALIDACIÓN DE CÉDULA =====
+    // Permitir solo números (6, 7 u 8 dígitos)
+    window.permitirSoloNumeros = (event) => {
+      const key = event.key;
+      if (!/[0-9]/.test(key) && 
+          !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(key)) {
+        event.preventDefault();
+      }
+    };
+    
+    // Validar en tiempo real
+    window.validarCedula = (input) => {
+      const val = input.value.replace(/\D/g, ''); // Solo números
+      input.value = val;
+      
+      const btn = document.getElementById('btn-buscar');
+      const help = document.getElementById('help-msg');
+      const error = document.getElementById('error-msg');
+      
+      // Resetear mensajes
+      help.style.display = 'block';
+      error.style.display = 'none';
+      input.style.borderColor = '#e2e8f0';
+      
+      if (val.length === 0) {
+        help.textContent = 'Ingresa tu cédula (6, 7 u 8 dígitos)';
+        help.style.color = '#64748b';
+        btn.disabled = true;
+      } 
+      else if (val.length < 6) {
+        help.textContent = `Faltan ${6 - val.length} dígito(s)...`;
+        help.style.color = '#f59e0b';
+        btn.disabled = true;
+      } 
+      else if (val.length >= 6 && val.length <= 8) {
+        help.style.display = 'none';
+        input.style.borderColor = '#22c55e';
+        btn.disabled = false;
+      } 
+      else {
+        input.value = val.slice(0, 8); // Truncar a 8 máx
+      }
+    };
+    
+    // Validación final antes de consultar
+    window.cedulaValida = (cedula) => /^[0-9]{6,8}$/.test(cedula);
+    
+    // ===== BUSCAR Y MOSTRAR QR =====
+    window.buscarMiQR = async () => {
+      const input = document.getElementById('cedula-input');
+      const cedula = input.value.trim();
+      
+      // Validación de seguridad
+      if (!cedulaValida(cedula)) {
+        mostrarError('⚠️ Cédula inválida. Usa 6, 7 u 8 dígitos.');
+        return;
+      }
+      
+      // UI: Loading
+      const btn = document.getElementById('btn-buscar');
+      const original = btn.innerHTML;
+      btn.innerHTML = '🔍 Buscando...';
+      btn.disabled = true;
+      
+      try {
+        // Consultar Firestore (solo lectura)
+        const docRef = doc(firestore, 'asistentes', cedula);
+        const snap = await getDoc(docRef);
+        
+        if (!snap.exists()) {
+          mostrarError('❌ Cédula no registrada en el evento.');
+          return;
+        }
+        
+        // ✅ Encontrado: mostrar QR
+        const data = snap.data();
+        mostrarQR(data, cedula);
+        
+      } catch (err) {
+        console.error('Error:', err);
+        mostrarError('❌ Error de conexión. Intenta nuevamente.');
+      } finally {
+        btn.innerHTML = original;
+        btn.disabled = false;
+      }
+    };
+    
+    // Mostrar QR en pantalla
+    function mostrarQR(persona, cedula) {
+      // Ocultar paso 1, mostrar paso 2
+      document.getElementById('paso1').style.display = 'none';
+      document.getElementById('paso2').style.display = 'block';
+      
+      // Datos del asistente
+      document.getElementById('qr-nombre').textContent = persona.nombre;
+      document.getElementById('qr-parroquia').textContent = `📍 ${persona.parroquia}`;
+      
+      // Generar QR visual
+      const qrContent = `${cedula}|${persona.nombre}|${persona.parroquia}|${persona.telefono}`;
+      
+      setTimeout(() => {
+        // Limpiar contenedor previo
+        document.getElementById('qr-container').innerHTML = '';
+        new QRCode(document.getElementById('qr-container'), {
+          text: qrContent,
+          width: 240,
+          height: 240,
+          colorDark: '#0f172a',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      }, 100);
+    }
+    
+    // Mostrar mensaje de error
+    function mostrarError(msg) {
+      const error = document.getElementById('error-msg');
+      error.textContent = msg;
+      error.style.display = 'block';
+      document.getElementById('cedula-input').style.borderColor = '#ef4444';
+    }
+    
+    // Resetear formulario
+    window.resetear = () => {
+      document.getElementById('paso1').style.display = 'block';
+      document.getElementById('paso2').style.display = 'none';
+      document.getElementById('error-msg').style.display = 'none';
+      const input = document.getElementById('cedula-input');
+      input.value = '';
+      input.style.borderColor = '#e2e8f0';
+      document.getElementById('help-msg').style.display = 'block';
+      document.getElementById('help-msg').textContent = 'Ingresa tu cédula (6, 7 u 8 dígitos)';
+      document.getElementById('help-msg').style.color = '#64748b';
+      document.getElementById('btn-buscar').disabled = true;
+    };
+    
+    // Exponer funciones globalmente
+    window.resetear = resetear;
+  </script>
+  
+  <!-- Librería QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: rgba(255,255,255,0.98);
+      color: #1e293b;
+      border-radius: 20px;
+      padding: 25px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    .header { text-align: center; margin-bottom: 25px; }
+    .header h1 { font-size: 1.3rem; font-weight: 700; color: #1e40af; }
+    .header p { color: #64748b; font-size: 0.9rem; margin-top: 5px; }
+    
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #334155; }
+    .form-group input {
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      text-align: center;
+      letter-spacing: 3px;
+      font-weight: 600;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+    }
+    .help { color: #64748b; font-size: 0.8rem; margin-top: 8px; display: block; }
+    .error { color: #ef4444; font-weight: 600; font-size: 0.85rem; margin-top: 8px; display: none; }
+    
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      color: white;
+    }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(59,130,246,0.4); }
+    
+    .qr-box { text-align: center; padding: 20px; background: #fff; border-radius: 16px; margin: 15px 0; }
+    .qr-info { font-weight: 700; font-size: 1.1rem; margin: 10px 0; color: #1e293b; }
+    .qr-parroquia { color: #64748b; font-size: 0.9rem; margin-bottom: 15px; }
+    .instructions {
+      background: rgba(59,130,246,0.1);
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      color: #1e40af;
+      margin: 15px 0;
+      text-align: left;
+    }
+    .btn-outline {
+      background: white;
+      color: #1e40af;
+      border: 2px solid #1e40af;
+    }
+    .btn-outline:hover { background: #f1f5f9; }
+    
+    .footer { text-align: center; margin-top: 20px; font-size: 0.8rem; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>🎟️ Tu Código de Acceso</h1>
+      <p>Evento 04 de Junio • Vente Cabimas</p>
+    </div>
+    
+    <!-- Paso 1: Ingresar cédula -->
+    <div id="paso1">
+      <div class="form-group">
+        <label for="cedula-input">Cédula *</label>
+        <input 
+          type="text" 
+          id="cedula-input" 
+          placeholder="Ej: 10145659" 
+          maxlength="8"
+          inputmode="numeric"
+          autocomplete="off"
+          oninput="validarCedula(this)"
+          onkeydown="permitirSoloNumeros(event)"
+        >
+        <small id="help-msg" class="help">Ingresa tu cédula (6, 7 u 8 dígitos)</small>
+        <small id="error-msg" class="error"></small>
+      </div>
+      <button id="btn-buscar" class="btn" onclick="buscarMiQR()" disabled>
+        🔍 Buscar mi QR
+      </button>
+      <p style="font-size:0.75rem;color:#94a3b8;margin-top:15px;text-align:center;">
+        🔒 Tu cédula solo se usa para verificar tu registro.
+      </p>
+    </div>
+    
+    <!-- Paso 2: Mostrar QR (oculto inicialmente) -->
+    <div id="paso2" style="display:none;">
+      <p style="color:#22c55e;font-weight:600;text-align:center;">✅ Registro encontrado</p>
+      <div id="qr-nombre" class="qr-info"></div>
+      <div id="qr-parroquia" class="qr-parroquia"></div>
+      
+      <div class="qr-box" id="qr-container"></div>
+      
+      <div class="instructions">
+        📸 <strong>Instrucciones:</strong><br>
+        1. Haz captura de pantalla de este QR<br>
+        2. Muéstralo en la entrada del evento<br>
+        3. El personal lo escaneará para validar tu acceso
+      </div>
+      
+      <button class="btn btn-outline" onclick="resetear()">
+        ↺ Buscar otra cédula
+      </button>
+    </div>
+    
+    <div class="footer">
+      <strong>VENTE CABIMAS</strong> • 14 Años por la Libertad 🇻
+    </div>
+  </div>
+</body>
+</html>
