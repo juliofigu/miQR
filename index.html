@@ -51,7 +51,7 @@
       input.style.borderColor = '#e2e8f0';
       
       if (val.length === 0) {
-        help.textContent = <strong>'Ingresa tu cédula:.'</strong>;
+        help.textContent = 'Ingresa tu cédula:. (6, 7 u 8 dígitos)';
         help.style.color = '#64748b';
         btn.disabled = true;
       } else if (val.length < 6) {
@@ -170,7 +170,7 @@
       input.value = '';
       input.style.borderColor = '#e2e8f0';
       document.getElementById('help-msg').style.display = 'block';
-      document.getElementById('help-msg').textContent = 'Ingresa tu cédula (6, 7 u 8 dígitos)';
+      document.getElementById('help-msg').textContent = 'Ingresañññññññ tu cédula (6, 7 u 8 dígitos)';
       document.getElementById('help-msg').style.color = '#64748b';
       document.getElementById('btn-buscar').disabled = true;
     };
